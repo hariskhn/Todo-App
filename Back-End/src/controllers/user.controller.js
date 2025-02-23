@@ -2,7 +2,7 @@ import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
-import { jwt } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -63,7 +63,7 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid credentials")
     }
 
-    const { accessToken, refreshToken } = generateAccessAndRefreshTokens(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
@@ -72,7 +72,11 @@ const loginUser = asyncHandler(async (req, res) => {
         secure: true
     }
 
-    return res.status(200).cookie("accessToken", accessToken, options).cookie("refreshToken", refreshToken, options).json(new ApiResponse(200, loggedInUser, "User logged in successfully"))
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "User logged in successfully"));
 })
 
 const logoutUser = asyncHandler(async (req, res) => {
@@ -123,7 +127,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             user._id,
             { refreshToken },
             { new: true, validateBeforeSave: true }
-        );
+        ).select("-password -refreshToken");
 
         return res
             .status(200)
